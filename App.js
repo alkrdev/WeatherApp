@@ -1,25 +1,24 @@
 import React from 'react';
 import AsyncStorage from '@react-native-community/async-storage'
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { API_KEY } from "./src/Setup"
+import { API_KEY } from "./src/components/Setup"
 
-import Home from "./src/components/Home";
-import International from "./src/components/International";
+import Home from "./src/Home";
+import International from "./src/International";
 
 const Stack = createStackNavigator();
 
 const App = () => {
+  // Hooks, at highest level, has main data and "locations", can be made available throughout all components
   const [data, setData] = React.useState({})
   const [forecast, setForecast] = React.useState({})
   const [loading, setLoading] = React.useState(true)
   const [locations, setLocations] = React.useState([])
 
-
-
+  // Uses AsyncStorage to get currently set "locations" in localstorage (persistent data)
   const StoreLocations = async () => {
     try {
-      console.log("FROM STORELOCATIONS: " + locations)
       await AsyncStorage.setItem('locations', JSON.stringify(locations));
     } catch (error) {
       console.log(error)
@@ -32,8 +31,21 @@ const App = () => {
       const value = await AsyncStorage.getItem('locations');
       if (value !== null) {
         var values = JSON.parse(value)
-        setLocations(values)
-        console.log("FROM GETLOCATIONS: " + values)
+        var ids = values.map(x => x.id)
+        if (ids.length !== 0) {
+          var url = `http://api.openweathermap.org/data/2.5/group?id=${ids.join()}&appid=${API_KEY}&units=metric`
+        
+          fetch(url)
+            .then(res => res.json())
+            .then(json => {          
+              setLocations(json.list.map(loc => ({                 
+                name: loc.name,
+                weather: loc.weather,
+                temperature: loc.main.temp,
+                id: loc.id                
+              })))
+            })
+        }        
       }
     } catch (error) {
       console.log(error)
@@ -56,11 +68,10 @@ const App = () => {
             sunrise: json.current.sunrise,
             sunset: json.current.sunset, 
             initialdatetime: json.current.dt,
-            temperature: json.current.temp 
+            temperature: json.current.temp,
+            weather: json.current.weather[0]
           }
           var forecast = json.daily.slice(1, 6)
-
-          // console.log(new Date(forecast.dt * 1000).toLocaleTimeString())
 
           setData(current)
           setForecast(forecast)
@@ -73,18 +84,33 @@ const App = () => {
     StoreLocations()
   }, [locations])
 
+  // "Onyx" background color
+  const WeatherAppTheme = {
+    ...DefaultTheme,
+    colors: {
+      ...DefaultTheme.colors,
+      background: '#303633'
+    },
+  };
+
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={WeatherAppTheme}>
       <Stack.Navigator initialRouteName="Home">
-        <Stack.Screen name="Home" options={{ headerTitleAlign: "center" }}>
-          {props => <Home {...props} data={data} forecast={forecast} loading={loading}/>}
+        <Stack.Screen name="Home" options={customHeader}>
+          {props => loading ? <></> : <Home {...props} data={data} forecast={forecast}/>}
         </Stack.Screen>
-        <Stack.Screen name="International" options={{ headerTitleAlign: "center" }}>
+        <Stack.Screen name="International" options={customHeader}>
           {props => <International {...props} locations={locations} setLocations={setLocations} StoreLocations={StoreLocations} GetLocations={GetLocations} />}
         </Stack.Screen> 
       </Stack.Navigator>
     </NavigationContainer>   
   );
+}
+
+const customHeader = { 
+  headerTitleAlign: "center", 
+  headerStyle: { backgroundColor: '#303633' }, 
+  headerTintColor: "#fff" 
 }
 
 export default App;
