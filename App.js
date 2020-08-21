@@ -16,7 +16,8 @@ const App = () => {
   const [loading, setLoading] = React.useState(true)
   const [locations, setLocations] = React.useState([])
 
-  // Uses AsyncStorage to get currently set "locations" in localstorage (persistent data)
+  // Uses AsyncStorage to store the current set of "Locations"
+  // Stringified because AsyncStorage only allows saving of a string
   const StoreLocations = async () => {
     try {
       await AsyncStorage.setItem('locations', JSON.stringify(locations));
@@ -26,18 +27,26 @@ const App = () => {
     }
   };
   
+  
+  // Uses AsyncStorage to get currently set "locations" in localstorage (persistent data)
+  // Parsed from a JSONString, due to string limitation, see above.
   const GetLocations = async () => {
     try {
       const value = await AsyncStorage.getItem('locations');
       if (value !== null) {
         var values = JSON.parse(value)
+
+        // Maps a new array, taking only the ID's of the current locations
         var ids = values.map(x => x.id)
+
+        // If there are any ID's
         if (ids.length !== 0) {
           var url = `http://api.openweathermap.org/data/2.5/group?id=${ids.join()}&appid=${API_KEY}&units=metric`
         
           fetch(url)
             .then(res => res.json())
-            .then(json => {          
+            .then(json => {         
+              // New data (temperature), making sure "Locations" is up-to-date 
               setLocations(json.list.map(loc => ({                 
                 name: loc.name,
                 weather: loc.weather,
@@ -53,8 +62,12 @@ const App = () => {
     }
   };
 
+  // useEffect setup with an empty DependencyArray, so it will only run once on render (and once every re-render)
   React.useEffect(() => {
+    // Run GetLocations to renew data from API
     GetLocations()
+
+    // Get current geolocation of device
     navigator.geolocation.getCurrentPosition(position => {
       var lat = position.coords.latitude
       var lon = position.coords.longitude
@@ -63,6 +76,7 @@ const App = () => {
       fetch(url)
         .then(res => res.json())
         .then(json => {
+          // Create object with data from API call
           var current = { 
             timezone: json.timezone,
             sunrise: json.current.sunrise,
@@ -71,15 +85,22 @@ const App = () => {
             temperature: json.current.temp,
             weather: json.current.weather[0]
           }
+
+          // Get forecast of the NEXT 5 days, skipping the first and remaining days
           var forecast = json.daily.slice(1, 6)
 
           setData(current)
           setForecast(forecast)
+
+          // Data has been loaded, so we're no longer loading
           setLoading(false)
         })
     })
   }, [])
 
+  // useEffect setup with "locations" as a dependency, making sure 
+  // StoreLocations() will run whenever "locations" changes
+  // Effectively constantly makes sure our persistent data is up-to-date
   React.useEffect(() => {
     StoreLocations()
   }, [locations])
@@ -94,13 +115,17 @@ const App = () => {
   };
 
   return (
+    // Theme applied to entire app (Across screen)
     <NavigationContainer theme={WeatherAppTheme}>
+      {/* Start on screen called "Home" */}
       <Stack.Navigator initialRouteName="Home">
         <Stack.Screen name="Home" options={customHeader}>
+          {/* Home requires knowledge of current data and forecast */}
           {props => loading ? <></> : <Home {...props} data={data} forecast={forecast}/>}
         </Stack.Screen>
         <Stack.Screen name="International" options={customHeader}>
-          {props => <International {...props} locations={locations} setLocations={setLocations} StoreLocations={StoreLocations} GetLocations={GetLocations} />}
+          {/* International requires knowledge of saved locations, and the ability to change them */}
+          {props => <International {...props} locations={locations} setLocations={setLocations} GetLocations={GetLocations} />}
         </Stack.Screen> 
       </Stack.Navigator>
     </NavigationContainer>   

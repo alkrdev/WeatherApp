@@ -10,7 +10,7 @@ const CurrentWeather = ({data}) => {
     const [context, setContext] = React.useState({})
     const [loading, setLoading] = React.useState(true);
 
-    // useEffect setup with an empty DependencyArray, so it will only run once on re-render
+    // useEffect setup with an empty DependencyArray, so it will only run once on render (and once every re-render)
     React.useEffect(() => {
         setContext({
             temperature: data.temperature,

@@ -27,7 +27,7 @@ const International = ({locations, setLocations, GetLocations}) => {
             })
     }
 
-    // useEffect setup with an empty DependencyArray, so it will only run once on re-render
+    // useEffect setup with an empty DependencyArray, so it will only run once on render (and once every re-render)
     React.useEffect(() => {
         GetLocations()
     }, [])
@@ -35,9 +35,11 @@ const International = ({locations, setLocations, GetLocations}) => {
     return (
         <View>
             <TextInput onChangeText={x => setText(x)} text={text} style={input} placeholder="Enter the name of a city" />
+
             <TouchableOpacity style={add} onPress={AddLocation}>
                 <Text style={{fontSize: 30}}>Add Location</Text>
             </TouchableOpacity>
+            
             <LocationsList locations={locations} setLocations={setLocations}/>
         </View>
 
